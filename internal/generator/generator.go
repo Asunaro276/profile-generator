@@ -11,12 +11,37 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
+
+// S3クライアントのシングルトン実装
+var (
+	s3Client      *s3.Client
+	presignClient *s3.PresignClient
+	clientOnce    sync.Once
+)
+
+// initS3Client は S3クライアントを初期化します
+func initS3Client() {
+	clientOnce.Do(func() {
+		// AWS SDKの設定をロード
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			fmt.Printf("AWS設定のロードに失敗: %v\n", err)
+			return
+		}
+
+		// S3クライアントの作成
+		s3Client = s3.NewFromConfig(cfg)
+		// 署名付きURLジェネレーターの作成
+		presignClient = s3.NewPresignClient(s3Client)
+	})
+}
 
 // Generator はユーザー生成器
 type Generator struct {
@@ -294,17 +319,13 @@ func generateRandomString(length int) string {
 
 // 署名付きURLを生成する関数
 func generateSignedURL(bucket, key string, duration time.Duration) (string, error) {
-	// AWS SDKの設定をロード
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return "", fmt.Errorf("AWS設定のロードに失敗: %v", err)
+	// クライアントの初期化（一度だけ実行される）
+	initS3Client()
+
+	// クライアントが初期化されていない場合はエラー
+	if presignClient == nil {
+		return "", fmt.Errorf("S3クライアントの初期化に失敗")
 	}
-
-	// S3クライアントの作成
-	client := s3.NewFromConfig(cfg)
-
-	// 署名付きURLジェネレーターの作成
-	presignClient := s3.NewPresignClient(client)
 
 	// 署名付きURLのリクエスト作成
 	request, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
