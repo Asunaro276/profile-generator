@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/randomuser
+    volumes:
+      - ./api:/app/api
+      - ./web:/app/web
+    networks:
+      - randomuser-network
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - randomuser-network
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=randomuser
+    command: mongod --quiet --logpath /dev/null
+
+networks:
+  randomuser-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+    driver: local

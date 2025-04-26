@@ -1,0 +1,32 @@
+# バイナリファイル
+/randomuser-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# テスト関連
+*.test
+*.out
+/coverage.txt
+
+# 依存関係
+vendor/
+
+# IDE関連
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# ログとテンポラリファイル
+*.log
+/tmp/
+
+# MongoDB データボリューム
+/data/mongodb/ 

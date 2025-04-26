@@ -1,0 +1,8 @@
+{
+  "port": 8080,
+  "db": "randomuser",
+  "limit": 100,
+  "maxResults": 5000,
+  "resetInterval": 300000,
+  "latestVersion": "1.4"
+}
