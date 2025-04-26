@@ -189,9 +189,9 @@ func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]i
 	// 写真番号
 	var photoNumber int
 	if gender == "male" {
-		photoNumber = rnd.Intn(47)
+		photoNumber = rnd.Intn(46) + 1
 	} else {
-		photoNumber = rnd.Intn(25)
+		photoNumber = rnd.Intn(24) + 1
 	}
 
 	// メールアドレス
