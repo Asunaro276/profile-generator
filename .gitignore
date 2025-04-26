@@ -30,3 +30,8 @@ Thumbs.db
 
 # MongoDB データボリューム
 /data/mongodb/ 
+
+# 設定ファイル
+config.json
+
+__debug_bin*
