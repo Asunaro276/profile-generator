@@ -11,28 +11,10 @@
 
 ## 要件
 
-- Go 1.20以上
+- Go 1.24以上
 - Docker & Docker Compose (推奨)
 
 ## 使い方
-
-### Dockerでの実行 (推奨)
-
-1. リポジトリをクローン
-```bash
-git clone https://github.com/yourname/randomuser-go.git
-cd randomuser-go
-```
-
-2. Docker Composeで起動
-```bash
-docker compose up -d
-```
-
-3. ブラウザで `http://localhost:8080` にアクセス
-
-### 手動での実行
-
 1. リポジトリをクローン
 ```bash
 git clone https://github.com/yourname/randomuser-go.git
@@ -44,45 +26,33 @@ cd randomuser-go
 go mod download
 ```
 
-3. MongoDBの起動
+3. サーバーの起動
 ```bash
-# MongoDBをローカルで実行する必要があります
+make run
 ```
 
-4. サーバーの起動
-```bash
-go run cmd/server/main.go
-```
-
-5. ブラウザで `http://localhost:8080` にアクセス
+4. ブラウザで `http://localhost:8080` にアクセス
 
 ## API使用例
 
 ### 基本的な使用法
 ```
-GET /api/
+GET /api
 ```
 
 ### 結果数の指定
 ```
-GET /api/?results=5
-```
-
-### 特定の国籍の指定
-```
-GET /api/?nat=us,gb
-```
-
-### フォーマット指定
-```
-GET /api/?format=xml
-GET /api/?format=csv
-GET /api/?format=json
+GET /api?results=5
 ```
 
 ### シード値の指定（同じ結果を再現）
 ```
 GET /api/?seed=abc
+```
+
+### 性別の指定
+```
+GET /api/?gender=male
 ```
 
 ## ディレクトリ構造
@@ -91,41 +61,16 @@ GET /api/?seed=abc
 randomuser-go/
 ├── cmd/
 │   └── server/
-│       └── main.go       # アプリケーションのエントリーポイント
+│       └── main.go                 # アプリケーションのエントリーポイント
 ├── internal/
-│   ├── api/
-│   │   ├── handlers.go   # APIハンドラー
-│   │   └── routes.go     # ルーティング設定
+│   ├── data/                       # ユーザー情報
 │   ├── config/
-│   │   └── config.go     # 設定管理
-│   ├── db/
-│   │   └── mongodb.go    # MongoDBとの接続
+│   │   └── config.go               # 設定管理
 │   ├── generator/
-│   │   └── generator.go  # ユーザー生成機能
-│   └── models/
-│       └── request.go    # リクエストモデル
-├── web/
-│   ├── static/           # 静的ファイル
-│   └── templates/        # HTMLテンプレート
-├── api/                  # 国籍別データ
-├── Dockerfile            # Dockerビルド設定
-├── compose.yml           # Docker Compose設定
-├── config.json           # アプリケーション設定
+│   │   └── generator.go            # ユーザー生成機能
+│   └── infrastructure/controller/
+│       └── generateuser.go         # ユーザー生成APIのコントローラー
 └── go.mod
-```
-
-## Docker構成
-
-- `compose.yml` - Docker Compose設定ファイル
-- `Dockerfile` - アプリケーションのDockerイメージビルド設定
-- MongoDB用のボリュームマウント (データ永続化)
-
-### 環境変数
-
-Docker環境では以下の環境変数が利用可能です：
-
-- `MONGODB_URI` - MongoDB接続URI
-- `MONGODB_DATABASE` - 使用するデータベース名
 
 ## ライセンス
 
