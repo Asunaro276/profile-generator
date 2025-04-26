@@ -23,6 +23,12 @@ func main() {
 		log.Fatalf("設定の読み込みに失敗: %v", err)
 	}
 
+	// 設定値を環境変数として設定
+	if err := config.SetEnv(cfg); err != nil {
+		log.Printf("環境変数の設定に失敗: %v", err)
+		// 続行 - 環境変数の設定が失敗してもアプリケーションは起動可能
+	}
+
 	// ジェネレーターの読み込み
 	gen := &generator.Generator{}
 	err = gen.LoadGenerators()

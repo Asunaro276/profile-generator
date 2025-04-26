@@ -55,15 +55,6 @@ func GenerateUser(c *gin.Context, gen *generator.Generator, cfg *config.Config) 
 	}
 	clientsMu.Unlock()
 
-	// ページ情報
-	page := 1
-	if pageparam := c.DefaultQuery("page", "1"); pageparam != "" {
-		pagenum, err := strconv.Atoi(pageparam)
-		if err == nil && pagenum > 0 {
-			page = pagenum
-		}
-	}
-
 	// シードの設定
 	seed := time.Now().UnixNano()
 	if seedParam := c.DefaultQuery("seed", ""); seedParam != "" {
@@ -73,6 +64,16 @@ func GenerateUser(c *gin.Context, gen *generator.Generator, cfg *config.Config) 
 			seed = seedInt
 		}
 	}
+
+	// ページ情報
+	page := 1
+	if pageparam := c.DefaultQuery("page", "1"); pageparam != "" {
+		pagenum, err := strconv.Atoi(pageparam)
+		if err == nil && pagenum > 0 {
+			page = pagenum
+		}
+	}
+	seed += int64(page)
 
 	// リクエストパラメータの解析
 	resultsStr := c.DefaultQuery("results", "1")

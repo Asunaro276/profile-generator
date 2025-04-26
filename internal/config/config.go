@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // Config はアプリケーション設定を保持する構造体
@@ -12,7 +13,7 @@ type Config struct {
 	Limit         int    `json:"limit"`
 	MaxResults    int    `json:"maxResults"`
 	ResetInterval int    `json:"resetInterval"`
-	LatestVersion string `json:"latestVersion"`
+	BucketName    string `json:"bucketName"`
 }
 
 // Load は設定ファイルから設定を読み込む
@@ -27,7 +28,7 @@ func Load() (*Config, error) {
 			Limit:         100,
 			MaxResults:    5000,
 			ResetInterval: 300000, // 5分 (ms)
-			LatestVersion: "1.4",
+			BucketName:    "profile-generator",
 		}, nil
 	}
 
@@ -45,4 +46,30 @@ func Load() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+// SetEnv は設定値を環境変数として設定します
+func SetEnv(config *Config) error {
+	if config == nil {
+		return nil
+	}
+
+	// 数値を文字列に変換して環境変数に設定
+	if err := os.Setenv("PORT", strconv.Itoa(config.Port)); err != nil {
+		return err
+	}
+	if err := os.Setenv("LIMIT", strconv.Itoa(config.Limit)); err != nil {
+		return err
+	}
+	if err := os.Setenv("MAX_RESULTS", strconv.Itoa(config.MaxResults)); err != nil {
+		return err
+	}
+	if err := os.Setenv("RESET_INTERVAL", strconv.Itoa(config.ResetInterval)); err != nil {
+		return err
+	}
+	if err := os.Setenv("BUCKET_NAME", config.BucketName); err != nil {
+		return err
+	}
+
+	return nil
 }

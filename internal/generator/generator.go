@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // Generator はユーザー生成器
@@ -123,7 +128,7 @@ func (g *Generator) generateUser(gender string) map[string]interface{} {
 	var firstName, lastName string
 
 	// 名前の生成
-	if gender == "male"&& g.Data["first_names_male"] != nil {
+	if gender == "male" && g.Data["first_names_male"] != nil {
 		firstNames := g.Data["first_names_male"].([]string)
 		firstName = firstNames[mathrand.Intn(len(firstNames))]
 	} else if gender == "female" && g.Data["first_names_female"] != nil {
@@ -157,11 +162,36 @@ func (g *Generator) generateUser(gender string) map[string]interface{} {
 		title = "Ms"
 	}
 
+	// 写真番号
+	var photoNumber int
+	if gender == "male" {
+		photoNumber = mathrand.Intn(47)
+	} else {
+		photoNumber = mathrand.Intn(25)
+	}
+
 	// メールアドレス
 	email := strings.ToLower(firstName) + "." + strings.ToLower(lastName) + "@example.com"
 
 	// ユーザーID生成
 	userID, _ := rand.Int(rand.Reader, big.NewInt(100000000))
+
+	// プロフィール画像のパス
+	bucket := os.Getenv("BUCKET_NAME")
+	if bucket == "" {
+		bucket = "profile-generator" // デフォルト値
+	}
+	thumbnailKey := fmt.Sprintf("%s/portrait (%d).png", gender, photoNumber)
+
+	// 署名付きURL（期限24時間）
+	thumbnailURL, _ := generateSignedURL(bucket, thumbnailKey, 10*time.Minute)
+
+	// エラー処理（本番環境では適切に処理すること）
+	largeURL := fmt.Sprintf("https://example.com/placeholder/%s/large.png", gender)
+	mediumURL := fmt.Sprintf("https://example.com/placeholder/%s/medium.png", gender)
+	if thumbnailURL == "" {
+		thumbnailURL = fmt.Sprintf("https://example.com/placeholder/%s/thumbnail.png", gender)
+	}
 
 	// ユーザーオブジェクトの作成
 	return map[string]interface{}{
@@ -210,9 +240,9 @@ func (g *Generator) generateUser(gender string) map[string]interface{} {
 			"value": fmt.Sprintf("%08d", userID.Int64()),
 		},
 		"picture": map[string]interface{}{
-			"large":     fmt.Sprintf("https://randomuser.me/api/portraits/%s/%d.jpg", gender, mathrand.Intn(99)),
-			"medium":    fmt.Sprintf("https://randomuser.me/api/portraits/med/%s/%d.jpg", gender, mathrand.Intn(99)),
-			"thumbnail": fmt.Sprintf("https://randomuser.me/api/portraits/thumb/%s/%d.jpg", gender, mathrand.Intn(99)),
+			"large":     largeURL,
+			"medium":    mediumURL,
+			"thumbnail": thumbnailURL,
 		},
 		"nat": "US",
 	}
@@ -260,4 +290,32 @@ func generateRandomString(length int) string {
 		result[i] = chars[n.Int64()]
 	}
 	return string(result)
+}
+
+// 署名付きURLを生成する関数
+func generateSignedURL(bucket, key string, duration time.Duration) (string, error) {
+	// AWS SDKの設定をロード
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return "", fmt.Errorf("AWS設定のロードに失敗: %v", err)
+	}
+
+	// S3クライアントの作成
+	client := s3.NewFromConfig(cfg)
+
+	// 署名付きURLジェネレーターの作成
+	presignClient := s3.NewPresignClient(client)
+
+	// 署名付きURLのリクエスト作成
+	request, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = duration
+	})
+	if err != nil {
+		return "", fmt.Errorf("署名付きURLの生成に失敗: %v", err)
+	}
+
+	return request.URL, nil
 }
