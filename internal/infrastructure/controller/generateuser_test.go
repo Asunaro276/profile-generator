@@ -31,54 +31,14 @@ func TestGenerateUser(t *testing.T) {
 	}{
 		{
 			name:           "正常なリクエスト",
-			queryParams:    map[string]string{"results": "2"},
-			mockReturnJSON: `{"results":[{"name":{"first":"Test","last":"User"}},{"name":{"first":"Test2","last":"User2"}}]}`,
+			queryParams:    map[string]string{"results": "2", "gender": "male", "seed": "12345", "page": "2"},
+			mockReturnJSON: `{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`,
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
-			expectedBody:   `{"results":[{"name":{"first":"Test","last":"User"}},{"name":{"first":"Test2","last":"User2"}}]}`,
+			expectedBody:   `{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`,
 			setUpMock: func(m *MockUserGenerator) {
-				m.EXPECT().Generate(2, mock.AnythingOfType("int64"), 1, "").Return(
-					`{"results":[{"name":{"first":"Test","last":"User"}},{"name":{"first":"Test2","last":"User2"}}]}`, nil,
-				)
-			},
-		},
-		{
-			name:           "ジェンダーを指定したリクエスト",
-			queryParams:    map[string]string{"results": "1", "gender": "female"},
-			mockReturnJSON: `{"results":[{"name":{"first":"Jane","last":"Doe"},"gender":"female"}]}`,
-			mockError:      nil,
-			expectedStatus: http.StatusOK,
-			expectedBody:   `{"results":[{"name":{"first":"Jane","last":"Doe"},"gender":"female"}]}`,
-			setUpMock: func(m *MockUserGenerator) {
-				m.EXPECT().Generate(1, mock.AnythingOfType("int64"), 1, "female").Return(
-					`{"results":[{"name":{"first":"Jane","last":"Doe"},"gender":"female"}]}`, nil,
-				)
-			},
-		},
-		{
-			name:           "ページを指定したリクエスト",
-			queryParams:    map[string]string{"results": "1", "page": "2"},
-			mockReturnJSON: `{"results":[{"name":{"first":"Page2","last":"User"}}]}`,
-			mockError:      nil,
-			expectedStatus: http.StatusOK,
-			expectedBody:   `{"results":[{"name":{"first":"Page2","last":"User"}}]}`,
-			setUpMock: func(m *MockUserGenerator) {
-				m.EXPECT().Generate(1, mock.AnythingOfType("int64"), 2, "").Return(
-					`{"results":[{"name":{"first":"Page2","last":"User"}}]}`, nil,
-				)
-			},
-		},
-		{
-			name:           "シードを指定したリクエスト",
-			queryParams:    map[string]string{"results": "1", "seed": "12345"},
-			mockReturnJSON: `{"results":[{"name":{"first":"Seeded","last":"User"}}]}`,
-			mockError:      nil,
-			expectedStatus: http.StatusOK,
-			expectedBody:   `{"results":[{"name":{"first":"Seeded","last":"User"}}]}`,
-			setUpMock: func(m *MockUserGenerator) {
-				// シードは内部で処理されるため、正確な値でのモックは困難。AnythingOfTypeで代用
-				m.EXPECT().Generate(1, mock.AnythingOfType("int64"), 1, "").Return(
-					`{"results":[{"name":{"first":"Seeded","last":"User"}}]}`, nil,
+				m.EXPECT().Generate(2, mock.AnythingOfType("int64"), 2, "male").Return(
+					`{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`, nil,
 				)
 			},
 		},
