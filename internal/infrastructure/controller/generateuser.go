@@ -9,8 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ryuhei/randomuser-go/internal/config"
-	"github.com/ryuhei/randomuser-go/internal/generator"
 )
+
+// UserGenerator はユーザー生成インターフェース
+type UserGenerator interface {
+	Generate(results int, seed int64, page int, gender string) (string, error)
+}
 
 var (
 	clients   = make(map[string]int)
@@ -40,7 +44,7 @@ func init() {
 }
 
 // generateUser はランダムユーザーを生成する
-func GenerateUser(c *gin.Context, gen *generator.Generator, cfg *config.Config) {
+func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
 	// IPアドレスの取得
 	ip := c.ClientIP()
 
