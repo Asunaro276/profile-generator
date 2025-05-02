@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ryuhei/randomuser-go/internal/config"
+	"github.com/ryuhei/randomuser-go/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -30,13 +31,29 @@ func TestGenerateUser(t *testing.T) {
 		{
 			name:           "正常なリクエスト",
 			queryParams:    map[string]string{"results": "2", "gender": "male", "seed": "12345", "page": "2"},
-			mockReturnJSON: `{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`,
+			mockReturnJSON: `{"results":[{"gender":"male","name":{"title":"","first":"Test","last":"User"},"location":{"street":{"number":0,"name":""},"city":"","state":"","country":"","postcode":"","coordinates":{"latitude":"","longitude":""}},"email":"","login":{"uuid":"","username":"","password":"","salt":"","md5":"","sha1":"","sha256":""},"dob":{"date":"","age":0},"registered":{"date":"","age":0},"phone":"","cell":"","id":{"name":"","value":""},"picture":{"large":"","medium":"","thumbnail":""},"nat":""},{"gender":"male","name":{"title":"","first":"Test2","last":"User2"},"location":{"street":{"number":0,"name":""},"city":"","state":"","country":"","postcode":"","coordinates":{"latitude":"","longitude":""}},"email":"","login":{"uuid":"","username":"","password":"","salt":"","md5":"","sha1":"","sha256":""},"dob":{"date":"","age":0},"registered":{"date":"","age":0},"phone":"","cell":"","id":{"name":"","value":""},"picture":{"large":"","medium":"","thumbnail":""},"nat":""}],"info":{"seed":"12345","results":2,"page": 2}}`,
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
-			expectedBody:   `{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`,
+			expectedBody:   `{"results":[{"gender":"male","name":{"title":"","first":"Test","last":"User"},"location":{"street":{"number":0,"name":""},"city":"","state":"","country":"","postcode":"","coordinates":{"latitude":"","longitude":""}},"email":"","login":{"uuid":"","username":"","password":"","salt":"","md5":"","sha1":"","sha256":""},"dob":{"date":"","age":0},"registered":{"date":"","age":0},"phone":"","cell":"","id":{"name":"","value":""},"picture":{"large":"","medium":"","thumbnail":""},"nat":""},{"gender":"male","name":{"title":"","first":"Test2","last":"User2"},"location":{"street":{"number":0,"name":""},"city":"","state":"","country":"","postcode":"","coordinates":{"latitude":"","longitude":""}},"email":"","login":{"uuid":"","username":"","password":"","salt":"","md5":"","sha1":"","sha256":""},"dob":{"date":"","age":0},"registered":{"date":"","age":0},"phone":"","cell":"","id":{"name":"","value":""},"picture":{"large":"","medium":"","thumbnail":""},"nat":""}],"info":{"seed":"12347","results":2,"page":2}}`,
 			setUpMock: func(m *MockUserGenerator) {
 				m.EXPECT().Generate(2, mock.AnythingOfType("int64"), 2, "male").Return(
-					`{"results":[{"name":{"first":"Test","last":"User"}, "gender": "male"}, {"name":{"first":"Test2","last":"User2"}, "gender": "male"}}]}`, nil,
+					[]model.User{
+						{
+							Gender: "male",
+							Name: model.Name{
+								First: "Test",
+								Last:  "User",
+							},
+						},
+						{
+							Gender: "male",
+							Name: model.Name{
+								First: "Test2",
+								Last:  "User2",
+							},
+						},
+					},
+					nil,
 				)
 			},
 		},
@@ -48,7 +65,18 @@ func TestGenerateUser(t *testing.T) {
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   `{"error":"assert.AnError general error for testing"}`,
 			setUpMock: func(m *MockUserGenerator) {
-				m.EXPECT().Generate(1, mock.AnythingOfType("int64"), 1, "").Return("", assert.AnError)
+				m.EXPECT().Generate(1, mock.AnythingOfType("int64"), 1, "").Return(
+					[]model.User{
+						{
+							Gender: "male",
+							Name: model.Name{
+								First: "Test",
+								Last:  "User",
+							},
+						},
+					},
+					assert.AnError,
+				)
 			},
 		},
 	}
@@ -99,10 +127,31 @@ func TestGenerateUserRateLimit(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
+	clients = make(map[string]int)
 
 	mockGen := NewMockUserGenerator(t)
 	mockGen.EXPECT().Generate(3, mock.AnythingOfType("int64"), 1, "").Return(
-		`{"results":[{"name":{"first":"Test1"}},{"name":{"first":"Test2"}},{"name":{"first":"Test3"}}]}`, nil,
+		[]model.User{
+			{
+				Gender: "male",
+				Name: model.Name{
+					First: "Test1",
+				},
+			},
+			{
+				Gender: "male",
+				Name: model.Name{
+					First: "Test2",
+				},
+			},
+			{
+				Gender: "male",
+				Name: model.Name{
+					First: "Test3",
+				},
+			},
+		},
+		nil,
 	).Times(2)
 
 	r.GET("/api/user", func(c *gin.Context) {
@@ -119,7 +168,7 @@ func TestGenerateUserRateLimit(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	w = httptest.NewRecorder()
 
-	req3, _ := http.NewRequest("GET", "/api/user?results=1", nil)
+	req3, _ := http.NewRequest("GET", "/api/user?results=2", nil)
 	r.ServeHTTP(w, req3)
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 

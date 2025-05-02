@@ -2,7 +2,6 @@ package generator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	mathrand "math/rand"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"github.com/ryuhei/randomuser-go/internal/model"
 )
 
 // S3クライアントのシングルトン実装
@@ -44,16 +45,6 @@ func initS3Client() {
 // Generator はユーザー生成器
 type Generator struct {
 	Data map[string]interface{}
-}
-
-// UserResult はランダムユーザーの生成結果
-type UserResult struct {
-	Results []map[string]interface{} `json:"results" xml:"results"`
-	Info    struct {
-		Seed    string `json:"seed" xml:"seed"`
-		Results int    `json:"results" xml:"results"`
-		Page    int    `json:"page" xml:"page"`
-	} `json:"info" xml:"info"`
 }
 
 // LoadGenerators はジェネレーターをロードする
@@ -106,40 +97,21 @@ func readLines(filename string) ([]string, error) {
 }
 
 // Generate は指定された数のユーザーを生成
-func (g *Generator) Generate(count int, seed int64, page int, gender string) (string, error) {
+func (g *Generator) Generate(count int, seed int64, page int, gender string) ([]model.User, error) {
 	// 乱数ジェネレーターの初期化 - これにより決定論的な結果が得られる
 	rnd := mathrand.New(mathrand.NewSource(seed))
 
 	// ユーザー生成
-	users := make([]map[string]interface{}, count)
+	users := make([]model.User, count)
 	for i := 0; i < count; i++ {
 		users[i] = g.generateUser(gender, rnd)
 	}
 
-	// レスポンス形式
-	result := UserResult{
-		Results: users,
-		Info: struct {
-			Seed    string `json:"seed" xml:"seed"`
-			Results int    `json:"results" xml:"results"`
-			Page    int    `json:"page" xml:"page"`
-		}{
-			Seed:    fmt.Sprintf("%d", seed),
-			Results: count,
-			Page:    page,
-		},
-	}
-
-	jsonData, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
+	return users, nil
 }
 
 // generateUser は1人のユーザーを生成
-func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]interface{} {
-	// ユーザーデータの生成
+func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) model.User {
 	if gender == "" {
 		if rnd.Intn(2) == 1 {
 			gender = "male"
@@ -148,10 +120,8 @@ func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]i
 		}
 	}
 
-	// 名前の取得
 	var firstName, lastName string
 
-	// 名前の生成
 	if gender == "male" && g.Data["first_names_male"] != nil {
 		firstNames := g.Data["first_names_male"].([]string)
 		firstName = firstNames[rnd.Intn(len(firstNames))]
@@ -159,7 +129,6 @@ func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]i
 		firstNames := g.Data["first_names_female"].([]string)
 		firstName = firstNames[rnd.Intn(len(firstNames))]
 	} else {
-		// デフォルト名 (国籍データがない場合)
 		maleNames := []string{"John", "Robert", "Michael", "David", "William"}
 		femaleNames := []string{"Mary", "Patricia", "Jennifer", "Linda", "Elizabeth"}
 
@@ -170,23 +139,19 @@ func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]i
 		}
 	}
 
-	// 姓の生成
 	if g.Data != nil && g.Data["last_names"] != nil {
 		lastNames := g.Data["last_names"].([]string)
 		lastName = lastNames[rnd.Intn(len(lastNames))]
 	} else {
-		// デフォルト姓 (国籍データがない場合)
 		defaultLastNames := []string{"Smith", "Johnson", "Williams", "Brown", "Jones"}
 		lastName = defaultLastNames[rnd.Intn(len(defaultLastNames))]
 	}
 
-	// タイトル
 	title := "Mr"
 	if gender == "female" {
 		title = "Ms"
 	}
 
-	// 写真番号
 	var photoNumber int
 	if gender == "male" {
 		photoNumber = rnd.Intn(46) + 1
@@ -194,81 +159,75 @@ func (g *Generator) generateUser(gender string, rnd *mathrand.Rand) map[string]i
 		photoNumber = rnd.Intn(24) + 1
 	}
 
-	// メールアドレス
 	email := strings.ToLower(firstName) + "." + strings.ToLower(lastName) + "@example.com"
 
-	// ユーザーID生成 - 決定論的に生成
 	userID := rnd.Int63n(100000000)
 
-	// プロフィール画像のパス
 	bucket := os.Getenv("BUCKET_NAME")
 	if bucket == "" {
-		bucket = "profile-generator" // デフォルト値
+		bucket = "profile-generator"
 	}
 	thumbnailKey := fmt.Sprintf("%s/portrait (%d).png", gender, photoNumber)
 
-	// 署名付きURL
 	thumbnailURL, _ := generateSignedURL(bucket, thumbnailKey, 10*time.Minute)
 
-	// エラー処理（本番環境では適切に処理すること）
 	largeURL := fmt.Sprintf("https://example.com/placeholder/%s/large.png", gender)
 	mediumURL := fmt.Sprintf("https://example.com/placeholder/%s/medium.png", gender)
 	if thumbnailURL == "" {
 		thumbnailURL = fmt.Sprintf("https://example.com/placeholder/%s/thumbnail.png", gender)
 	}
 
-	// ユーザーオブジェクトの作成
-	return map[string]interface{}{
-		"gender": gender,
-		"name": map[string]interface{}{
-			"title": title,
-			"first": firstName,
-			"last":  lastName,
+	return model.User{
+		Gender: gender,
+		Name: model.Name{
+			Title: title,
+			First: firstName,
+			Last:  lastName,
 		},
-		"location": map[string]interface{}{
-			"street": map[string]interface{}{
-				"number": rnd.Intn(9999) + 1,
-				"name":   generateRandomStreetWithRand(rnd),
+		Location: model.Location{
+			Street: model.Street{
+				Number: rnd.Intn(9999) + 1,
+				Name:   generateRandomStreetWithRand(rnd),
 			},
-			"city":     generateRandomCityWithRand(rnd),
-			"state":    generateRandomStateWithRand(rnd),
-			"country":  "US",
-			"postcode": fmt.Sprintf("%05d", rnd.Intn(99999)),
-			"coordinates": map[string]interface{}{
-				"latitude":  fmt.Sprintf("%.4f", -90.0+rnd.Float64()*180.0),
-				"longitude": fmt.Sprintf("%.4f", -180.0+rnd.Float64()*360.0),
+			City:     generateRandomCityWithRand(rnd),
+			State:    generateRandomStateWithRand(rnd),
+			Country:  "US",
+			Postcode: fmt.Sprintf("%05d", rnd.Intn(99999)),
+			Coordinates: model.Coordinates{
+				Latitude:  fmt.Sprintf("%.4f", -90.0+rnd.Float64()*180.0),
+				Longitude: fmt.Sprintf("%.4f", -180.0+rnd.Float64()*360.0),
 			},
 		},
-		"email": email,
-		"login": map[string]interface{}{
-			"uuid":     generateUUIDWithRand(rnd),
-			"username": strings.ToLower(firstName + lastName + strconv.Itoa(rnd.Intn(99))),
-			"password": generateRandomPasswordWithRand(rnd),
-			"salt":     generateRandomStringWithRand(rnd, 16),
-			"md5":      generateRandomStringWithRand(rnd, 32),
-			"sha1":     generateRandomStringWithRand(rnd, 40),
-			"sha256":   generateRandomStringWithRand(rnd, 64),
+		Email: email,
+		Login: model.Login{
+			UUID:     generateUUIDWithRand(rnd),
+			Username: strings.ToLower(firstName + lastName + strconv.Itoa(rnd.Intn(99))),
+			Password: generateRandomPasswordWithRand(rnd),
+			Salt:     generateRandomStringWithRand(rnd, 16),
+			MD5:      generateRandomStringWithRand(rnd, 32),
+			SHA1:     generateRandomStringWithRand(rnd, 40),
+			SHA256:   generateRandomStringWithRand(rnd, 64),
 		},
-		"dob": map[string]interface{}{
-			"date": time.Now().AddDate(-rnd.Intn(80)-18, -rnd.Intn(12), -rnd.Intn(28)).Format(time.RFC3339),
-			"age":  rnd.Intn(80) + 18,
+		Dob: model.Dob{
+			Date: time.Now().AddDate(-rnd.Intn(80)-18, -rnd.Intn(12), -rnd.Intn(28)).Format(time.RFC3339),
+			Age:  rnd.Intn(80) + 18,
 		},
-		"registered": map[string]interface{}{
-			"date": time.Now().AddDate(-rnd.Intn(20), -rnd.Intn(12), -rnd.Intn(28)).Format(time.RFC3339),
-			"age":  rnd.Intn(20),
+		Registered: model.Registered{
+			Date: time.Now().AddDate(-rnd.Intn(20), -rnd.Intn(12), -rnd.Intn(28)).Format(time.RFC3339),
+			Age:  rnd.Intn(20),
 		},
-		"phone": fmt.Sprintf("(%03d)-%03d-%04d", rnd.Intn(1000), rnd.Intn(1000), rnd.Intn(10000)),
-		"cell":  fmt.Sprintf("(%03d)-%03d-%04d", rnd.Intn(1000), rnd.Intn(1000), rnd.Intn(10000)),
-		"id": map[string]interface{}{
-			"name":  "ID",
-			"value": fmt.Sprintf("%08d", userID),
+		Phone: fmt.Sprintf("(%03d)-%03d-%04d", rnd.Intn(1000), rnd.Intn(1000), rnd.Intn(10000)),
+		Cell:  fmt.Sprintf("(%03d)-%03d-%04d", rnd.Intn(1000), rnd.Intn(1000), rnd.Intn(10000)),
+		ID: model.ID{
+			Name:  "ID",
+			Value: fmt.Sprintf("%08d", userID),
 		},
-		"picture": map[string]interface{}{
-			"large":     largeURL,
-			"medium":    mediumURL,
-			"thumbnail": thumbnailURL,
+		Picture: model.Picture{
+			Large:     largeURL,
+			Medium:    mediumURL,
+			Thumbnail: thumbnailURL,
 		},
-		"nat": "US",
+		NAT: "US",
 	}
 }
 

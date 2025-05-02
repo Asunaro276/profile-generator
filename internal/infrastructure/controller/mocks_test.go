@@ -5,6 +5,7 @@
 package controller
 
 import (
+	"github.com/ryuhei/randomuser-go/internal/model"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,22 +37,24 @@ func (_m *MockUserGenerator) EXPECT() *MockUserGenerator_Expecter {
 }
 
 // Generate provides a mock function for the type MockUserGenerator
-func (_mock *MockUserGenerator) Generate(results int, seed int64, page int, gender string) (string, error) {
+func (_mock *MockUserGenerator) Generate(results int, seed int64, page int, gender string) ([]model.User, error) {
 	ret := _mock.Called(results, seed, page, gender)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Generate")
 	}
 
-	var r0 string
+	var r0 []model.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(int, int64, int, string) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(int, int64, int, string) ([]model.User, error)); ok {
 		return returnFunc(results, seed, page, gender)
 	}
-	if returnFunc, ok := ret.Get(0).(func(int, int64, int, string) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(int, int64, int, string) []model.User); ok {
 		r0 = returnFunc(results, seed, page, gender)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.User)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(int, int64, int, string) error); ok {
 		r1 = returnFunc(results, seed, page, gender)
@@ -82,12 +85,12 @@ func (_c *MockUserGenerator_Generate_Call) Run(run func(results int, seed int64,
 	return _c
 }
 
-func (_c *MockUserGenerator_Generate_Call) Return(s string, err error) *MockUserGenerator_Generate_Call {
-	_c.Call.Return(s, err)
+func (_c *MockUserGenerator_Generate_Call) Return(users []model.User, err error) *MockUserGenerator_Generate_Call {
+	_c.Call.Return(users, err)
 	return _c
 }
 
-func (_c *MockUserGenerator_Generate_Call) RunAndReturn(run func(results int, seed int64, page int, gender string) (string, error)) *MockUserGenerator_Generate_Call {
+func (_c *MockUserGenerator_Generate_Call) RunAndReturn(run func(results int, seed int64, page int, gender string) ([]model.User, error)) *MockUserGenerator_Generate_Call {
 	_c.Call.Return(run)
 	return _c
 }

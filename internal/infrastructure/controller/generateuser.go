@@ -9,11 +9,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ryuhei/randomuser-go/internal/config"
+	"github.com/ryuhei/randomuser-go/internal/model"
 )
+
+// UserResult はランダムユーザーの生成結果
+type userResponse struct {
+	Results []model.User `json:"results"`
+	Info    info         `json:"info"`
+}
+
+type info struct {
+	Seed    string `json:"seed"`
+	Results int    `json:"results"`
+	Page    int    `json:"page"`
+}
 
 // UserGenerator はユーザー生成インターフェース
 type UserGenerator interface {
-	Generate(results int, seed int64, page int, gender string) (string, error)
+	Generate(results int, seed int64, page int, gender string) ([]model.User, error)
 }
 
 var (
@@ -21,34 +34,10 @@ var (
 	clientsMu sync.Mutex
 )
 
-// クライアント制限のリセット
-func init() {
-	go func() {
-		// ミリ秒をナノ秒に変換（デフォルト: 5分）
-		resetInterval := 5 * 60 * 1000 * 1000000 // 5分
-
-		for {
-			time.Sleep(time.Duration(resetInterval))
-			clientsMu.Lock()
-			// 制限超過のクライアントを表示
-			for client, count := range clients {
-				if count >= 1000 { // 設定から読み込むべき
-					fmt.Printf("制限超過: %s: %d\n", client, count)
-				}
-			}
-			// リセット
-			clients = make(map[string]int)
-			clientsMu.Unlock()
-		}
-	}()
-}
-
-// generateUser はランダムユーザーを生成する
 func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
-	// IPアドレスの取得
 	ip := c.ClientIP()
 
-	// レート制限のチェック
+	fmt.Println("clients:", clients[ip])
 	clientsMu.Lock()
 	if clients[ip] >= cfg.Limit {
 		clientsMu.Unlock()
@@ -59,17 +48,14 @@ func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
 	}
 	clientsMu.Unlock()
 
-	// シードの設定
 	seed := time.Now().UnixNano()
 	if seedParam := c.DefaultQuery("seed", ""); seedParam != "" {
-		// 文字列からシードを生成
 		seedInt, err := strconv.ParseInt(seedParam, 10, 64)
 		if err == nil {
 			seed = seedInt
 		}
 	}
 
-	// ページ情報
 	page := 1
 	if pageparam := c.DefaultQuery("page", "1"); pageparam != "" {
 		pagenum, err := strconv.Atoi(pageparam)
@@ -79,24 +65,20 @@ func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
 	}
 	seed += int64(page)
 
-	// リクエストパラメータの解析
 	resultsStr := c.DefaultQuery("results", "1")
 	results, err := strconv.Atoi(resultsStr)
 	if err != nil || results < 1 || results > cfg.MaxResults {
 		results = 1
 	}
 
-	// 性別の設定
 	gender := c.DefaultQuery("gender", "")
 
-	// ジェネレーターの実行
 	output, err := gen.Generate(results, seed, page, gender)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// レート制限のカウント更新
 	clientsMu.Lock()
 	if _, exists := clients[ip]; !exists {
 		clients[ip] = results
@@ -105,6 +87,15 @@ func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
 	}
 	clientsMu.Unlock()
 
+	res := userResponse{
+		Results: output,
+		Info: info{
+			Seed:    strconv.FormatInt(seed, 10),
+			Results: results,
+			Page:    page,
+		},
+	}
+
 	c.Header("Content-Type", "application/json; charset=utf-8")
-	c.String(http.StatusOK, output)
+	c.JSON(http.StatusOK, res)
 }
