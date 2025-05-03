@@ -25,9 +25,7 @@ func Load() (*Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return &Config{
 			Port:          8080,
-			Limit:         100,
 			MaxResults:    5000,
-			ResetInterval: 300000, // 5分 (ms)
 			BucketName:    "profile-generator",
 		}, nil
 	}
@@ -58,13 +56,7 @@ func SetEnv(config *Config) error {
 	if err := os.Setenv("PORT", strconv.Itoa(config.Port)); err != nil {
 		return err
 	}
-	if err := os.Setenv("LIMIT", strconv.Itoa(config.Limit)); err != nil {
-		return err
-	}
 	if err := os.Setenv("MAX_RESULTS", strconv.Itoa(config.MaxResults)); err != nil {
-		return err
-	}
-	if err := os.Setenv("RESET_INTERVAL", strconv.Itoa(config.ResetInterval)); err != nil {
 		return err
 	}
 	if err := os.Setenv("BUCKET_NAME", config.BucketName); err != nil {

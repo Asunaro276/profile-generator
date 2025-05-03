@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,25 +27,7 @@ type UserGenerator interface {
 	Generate(results int, seed int64, page int, gender string) ([]model.User, error)
 }
 
-var (
-	clients   = make(map[string]int)
-	clientsMu sync.Mutex
-)
-
 func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
-	ip := c.ClientIP()
-
-	fmt.Println("clients:", clients[ip])
-	clientsMu.Lock()
-	if clients[ip] >= cfg.Limit {
-		clientsMu.Unlock()
-		c.JSON(http.StatusTooManyRequests, gin.H{
-			"error": fmt.Sprintf("制限超過: %d ユーザーのリクエストが1分間に行われました", clients[ip]),
-		})
-		return
-	}
-	clientsMu.Unlock()
-
 	seed := time.Now().UnixNano()
 	if seedParam := c.DefaultQuery("seed", ""); seedParam != "" {
 		seedInt, err := strconv.ParseInt(seedParam, 10, 64)
@@ -78,14 +58,6 @@ func GenerateUser(c *gin.Context, gen UserGenerator, cfg *config.Config) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	clientsMu.Lock()
-	if _, exists := clients[ip]; !exists {
-		clients[ip] = results
-	} else {
-		clients[ip] += results
-	}
-	clientsMu.Unlock()
 
 	res := userResponse{
 		Results: output,
