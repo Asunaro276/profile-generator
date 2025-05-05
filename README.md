@@ -2,17 +2,8 @@
 
 このプロジェクトは[Randomuser.me-Node](https://github.com/RandomAPI/Randomuser.me-Node)をGo言語に移植したものです。ランダムなユーザーデータを生成するAPIを提供します。
 
-## 機能
-
-- 複数フォーマットのサポート (JSON, XML, CSV)
-- 複数の国籍のデータに対応
-- レート制限機能
-- 統計情報の記録
-
 ## 要件
-
 - Go 1.24以上
-- Docker & Docker Compose (推奨)
 
 ## 使い方
 1. リポジトリをクローン
@@ -31,7 +22,7 @@ go mod download
 make run
 ```
 
-4. ブラウザで `http://localhost:8080` にアクセス
+4. ブラウザで `http://localhost:8080/api` にアクセス
 
 ## API使用例
 
@@ -47,12 +38,17 @@ GET /api?results=5
 
 ### シード値の指定（同じ結果を再現）
 ```
-GET /api/?seed=abc
+GET /api/?seed=12345
 ```
 
 ### 性別の指定
 ```
 GET /api/?gender=male
+```
+
+### ページ番号の指定
+```
+GET /api/?page=2
 ```
 
 ## ディレクトリ構造
@@ -63,13 +59,11 @@ randomuser-go/
 │   └── server/
 │       └── main.go                 # アプリケーションのエントリーポイント
 ├── internal/
+│   ├── config/                     # 設定管理
 │   ├── data/                       # ユーザー情報
-│   ├── config/
-│   │   └── config.go               # 設定管理
-│   ├── generator/
-│   │   └── generator.go            # ユーザー生成機能
-│   └── infrastructure/controller/
-│       └── generateuser.go         # ユーザー生成APIのコントローラー
+│   ├── generator/                  # ユーザー生成機能
+│   ├── infrastructure/controller/  # ユーザー生成APIのコントローラー
+│   └── model/                      # ユーザー情報のモデル
 └── go.mod
 
 ## ライセンス
